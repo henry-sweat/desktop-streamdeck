@@ -1,7 +1,6 @@
 const { openStreamDeck, listStreamDecks } = require("@elgato-stream-deck/node");
 const { pages } = require("./config");
 const { getState, toggleEntity, callService } = require("./ha-client");
-const { getPowerState: getDenonPower, togglePower: toggleDenon, volumeUp: denonVolUp, volumeDown: denonVolDown } = require("./denon");
 const { renderButton } = require("./render");
 
 let deck;
@@ -29,13 +28,7 @@ async function refreshState() {
         if (!btn) continue;
 
         const key = stateKey(pageName, i);
-        if (btn.action === "denon_toggle") {
-          try {
-            buttonStates[key] = await getDenonPower();
-          } catch (err) {
-            console.error("Denon state check failed:", err.message);
-          }
-        } else if (btn.entities) {
+        if (btn.entities) {
           const state = await getState(btn.entities[0]);
           buttonStates[key] = state.state === "on";
         }
@@ -83,12 +76,6 @@ async function handleKeyPress(keyIndex) {
       currentPage = btn.page;
       await drawAllButtons();
       return;
-    } else if (btn.action === "denon_toggle") {
-      await toggleDenon();
-    } else if (btn.action === "denon_vol_up") {
-      await denonVolUp();
-    } else if (btn.action === "denon_vol_down") {
-      await denonVolDown();
     } else if (btn.action === "toggle") {
       await Promise.all(btn.entities.map((id) => toggleEntity(id)));
     } else if (btn.action === "preset_toggle") {
