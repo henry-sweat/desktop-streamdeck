@@ -31,7 +31,7 @@ const pages = {
       entities: ["light.phillips_hue_bulb"],
       swatchColor: "#FFCC66",
       serviceData: {
-        color_temp: 370,
+        color_temp_kelvin: 2700,
         brightness_pct: 60,
       },
       colors: { off: "#2A2A3A", on: "#4A3A1A" },

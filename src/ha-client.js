@@ -22,7 +22,7 @@ async function toggleEntity(entityId) {
     headers,
     body: JSON.stringify({ entity_id: entityId }),
   });
-  if (!res.ok) throw new Error(`HA API error: ${res.status}`);
+  if (!res.ok) throw new Error(`HA API error: ${res.status} ${await res.text()}`);
   return res.json();
 }
 
@@ -32,7 +32,7 @@ async function callService(domain, service, data) {
     headers,
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(`HA API error: ${res.status}`);
+  if (!res.ok) throw new Error(`HA API error: ${res.status} ${await res.text()}`);
   return res.json();
 }
 
