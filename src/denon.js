@@ -8,7 +8,15 @@ async function sendCommand(cmd) {
 }
 
 async function getPowerState() {
-  const res = await fetch(`http://${DENON_IP}/goform/formMainZone_MainZoneXmlStatusLite.xml`);
+  let res;
+  try {
+    res = await fetch(`http://${DENON_IP}/goform/formMainZone_MainZoneXmlStatusLite.xml`, {
+      signal: AbortSignal.timeout(1500),
+    });
+  } catch {
+    // Unreachable means the receiver is switched off at the wall, which is normal
+    return false;
+  }
   if (!res.ok) throw new Error(`Denon error: ${res.status}`);
   const text = await res.text();
   return text.includes("<Power><value>ON</value></Power>");
