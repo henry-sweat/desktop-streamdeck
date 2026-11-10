@@ -19,25 +19,47 @@ function stateKey(page, index) {
   return `${page}:${index}`;
 }
 
+const POLL_INTERVAL_MS = 5000;
+let refreshing = false;
+let lastRefreshError = null;
+
 async function refreshState() {
+  // Never let refreshes overlap — if HA is slow they would pile up and
+  // starve button presses.
+  if (refreshing) return;
+  refreshing = true;
   try {
     // Refresh state for ALL pages so folder switches are instant
+    const jobs = [];
     for (const [pageName, btns] of Object.entries(pages)) {
-      for (let i = 0; i < btns.length; i++) {
-        const btn = btns[i];
-        if (!btn) continue;
-
-        const key = stateKey(pageName, i);
-        if (btn.entities) {
-          const state = await getState(btn.entities[0]);
-          buttonStates[key] = state.state === "on";
-        }
-      }
+      btns.forEach((btn, i) => {
+        if (!btn || !btn.entities) return;
+        jobs.push(
+          getState(btn.entities[0]).then((state) => {
+            buttonStates[stateKey(pageName, i)] = state.state === "on";
+          })
+        );
+      });
     }
+    await Promise.all(jobs);
     await drawAllButtons();
+    if (lastRefreshError) {
+      console.log(`${new Date().toISOString()} State refresh recovered`);
+      lastRefreshError = null;
+    }
   } catch (err) {
-    console.error("Failed to fetch state:", err.message);
+    // Only log when the error changes, so an outage doesn't flood the log
+    if (err.message !== lastRefreshError) {
+      console.error(`${new Date().toISOString()} Failed to fetch state: ${err.message}`);
+      lastRefreshError = err.message;
+    }
+  } finally {
+    refreshing = false;
   }
+}
+
+function pollState() {
+  refreshState().finally(() => setTimeout(pollState, POLL_INTERVAL_MS));
 }
 
 async function drawAllButtons() {
@@ -101,7 +123,7 @@ async function handleKeyPress(keyIndex) {
 
     setTimeout(refreshState, 500);
   } catch (err) {
-    console.error(`Error handling button ${keyIndex}:`, err.message);
+    console.error(`${new Date().toISOString()} Error handling button ${keyIndex}: ${err.message}`);
   }
 }
 
@@ -119,9 +141,7 @@ async function main() {
   console.log(`Connected: ${deck.PRODUCT_NAME}, ${numKeys} keys, ${iconSize}x${iconSize}px`);
 
   await deck.setBrightness(20);
-  await refreshState();
-
-  setInterval(refreshState, 5000);
+  pollState();
 
   deck.on("down", (control) => {
     handleKeyPress(control.index);
